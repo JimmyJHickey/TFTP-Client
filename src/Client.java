@@ -2,13 +2,17 @@
 // Ben Andrews, Will Diedrick, Jimmy Hickey
 // 2018-3-23
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Random;
+
 
 
 
@@ -33,7 +37,7 @@ public class Client
 			this.myAddress = InetAddress.getLocalHost();
 			
 			
-			serverPort = 69;
+			serverPort = Const.TFTP_PORT;
 			this.serverAddress = InetAddress.getByName(serverAddress);
 			
 			socket = new DatagramSocket(this.myPort, this.myAddress);
@@ -50,9 +54,9 @@ public class Client
 	
 	public byte[] getMail()
 	{
-		byte[] data = new byte[Const.PACKET_SIZE];
+		byte[] buff = new byte[Const.PACKET_SIZE];
 		
-		DatagramPacket packet = new DatagramPacket(data, data.length);
+		DatagramPacket packet = new DatagramPacket(buff, buff.length);
 		
 		try 
 		{
@@ -64,7 +68,21 @@ public class Client
 			e.printStackTrace();
 		}
 		
-		return packet.getData();
+		if (serverPort == Const.TFTP_PORT) 
+		{
+			serverPort = packet.getPort();
+			System.out.printf("New server port: %d\n", serverPort);
+		}
+		
+		
+		System.out.printf("data length: %d\n", packet.getLength());
+		
+		byte data[] = new byte[packet.getLength()];
+		
+		for(int i = 0; i < data.length; ++i)
+			data[i] = buff[i];
+		
+		return data;
 	}
 	
 	
@@ -85,27 +103,147 @@ public class Client
 	
 	public void readFile(String filepath, String mode)
 	{
-		byte request[] = createReadWriteRequest(Const.RRQ, filepath, mode);
-		
-		
-		for(int i = 0; i < request.length; ++i ) 
+		FileWriter fw;
+		BufferedWriter bw = null;
+		try 
 		{
-			System.out.printf("# %d : %c\n", request[i], (char)request[i]);
+			fw = new FileWriter(filepath);
+			bw = new BufferedWriter(fw);
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
 		}
-		System.out.printf("\n");
-
+		
+		byte request[] = createReadWriteRequest(Const.RRQ, filepath, mode);
+		int blockNumber_client = 1;
+		int blockNumber_server = 0;
+		
 		sendPacket(request);
 		
-		byte reply[] = getMail();
+		byte reply[] = null;
 		
-		for(int i = 0; i < reply.length; ++i)
+		do
 		{
-			System.out.printf("# %d : %c\n", reply[i], (char)reply[i]);
-		}
-			
+		reply = getMail();
+		System.out.printf("Size of reply %d\n", reply.length);
 		
-		//byte [] readRQ = {Const.TERM, Const.RRQ, Const.TERM, mode.getBytes(), Const.TERM}; 
-		//sendPacket();
+		blockNumber_server = 0;
+		blockNumber_server |= reply[2];
+		blockNumber_server <<= 8;
+		blockNumber_server |= reply[3];
+		
+		if(reply[1] != Const.DATA)
+			// handle error
+			System.err.printf("Packet does not contain data. Opcode: %d", reply[1]);
+		
+		if(blockNumber_server != blockNumber_client)
+			 // very bad things
+			System.err.printf("Incorrect Block Number. Got: %d Want: %d\n", blockNumber_server, blockNumber_client);
+		
+		String str = null;
+		try 
+		{
+			str = new String(reply, 4, reply.length -4, "UTF-8");
+			bw.write(str);
+		} 
+		catch (UnsupportedEncodingException e) 
+		{
+			e.printStackTrace();
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+		}
+		
+		//System.out.printf("%s\n", str);
+		
+		byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
+		sendPacket(ack);
+		
+		if(++blockNumber_client > 65535)
+			blockNumber_client = 0;
+		
+		
+		} while(reply.length == Const.PACKET_SIZE);
+		
+		
+		try 
+		{
+			bw.flush();
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+		}
+		
+		
+		
+		
+		
+		
+		
+//		while(reply[1] == Const.DATA && blockNumber_server == blockNumber_client && reply.length == 512)
+//		{
+//			
+//			
+//			String str = null;
+//			try {
+//				str = new String(reply, "UTF-8");
+//			} catch (UnsupportedEncodingException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//			
+//			str = str.substring(4);
+//			
+//			try {
+//				bw.write(str);
+//			} catch (IOException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//			
+//			reply = getMail();
+//		}
+//		
+//		String str = null;
+//		try 
+//		{
+//			str = new String(reply, "UTF-8");
+//		} 
+//		catch (UnsupportedEncodingException e) 
+//		{
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//		
+//		str = str.substring(4);
+//		
+//		try {
+//			bw.write(str);
+//		} 
+//		catch (IOException e) 
+//		{
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//		
+//		
+//		
+//		try 
+//		{
+//			bw.flush();
+//		} 
+//		catch (IOException e) 
+//		{
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+		
+		
+		
+		
 	}
 	
 	private byte[] createReadWriteRequest(byte opcode, String filepath, String mode)
