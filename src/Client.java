@@ -125,44 +125,45 @@ public class Client
 		
 		do
 		{
-		reply = getMail();
-		System.out.printf("Size of reply %d\n", reply.length);
-		
-		blockNumber_server = 0;
-		blockNumber_server |= reply[2];
-		blockNumber_server <<= 8;
-		blockNumber_server |= reply[3];
-		
-		if(reply[1] != Const.DATA)
-			// handle error
-			System.err.printf("Packet does not contain data. Opcode: %d", reply[1]);
-		
-		if(blockNumber_server != blockNumber_client)
-			 // very bad things
-			System.err.printf("Incorrect Block Number. Got: %d Want: %d\n", blockNumber_server, blockNumber_client);
-		
-		String str = null;
-		try 
-		{
-			str = new String(reply, 4, reply.length -4, "UTF-8");
-			bw.write(str);
-		} 
-		catch (UnsupportedEncodingException e) 
-		{
-			e.printStackTrace();
-		} 
-		catch (IOException e) 
-		{
-			e.printStackTrace();
-		}
-		
-		//System.out.printf("%s\n", str);
-		
-		byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
-		sendPacket(ack);
-		
-		if(++blockNumber_client > 65535)
-			blockNumber_client = 0;
+			reply = getMail();
+			
+			blockNumber_server = 0;
+			blockNumber_server |= unsignedByteToInt(reply[2]);
+			blockNumber_server <<= 8;
+			blockNumber_server |= unsignedByteToInt(reply[3]);
+			
+			
+			if(reply[1] != Const.DATA)
+				// handle error
+				System.err.printf("Packet does not contain data. Opcode: %d", reply[1]);
+			
+			if(blockNumber_server != blockNumber_client)
+				 // very bad things
+				System.err.printf("Incorrect Block Number. Got: %d Want: %d\n", blockNumber_server, blockNumber_client);
+			
+			
+			String str = null;
+			try 
+			{
+				str = new String(reply, 4, reply.length -4, "UTF-8");
+				bw.write(str);
+			} 
+			catch (UnsupportedEncodingException e) 
+			{
+				e.printStackTrace();
+			} 
+			catch (IOException e) 
+			{
+				e.printStackTrace();
+			}
+			
+			//System.out.printf("%s\n", str);
+			
+			byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
+			sendPacket(ack);
+			
+			if(++blockNumber_client > 65535)
+				blockNumber_client = 0;
 		
 		
 		} while(reply.length == Const.PACKET_SIZE);
@@ -177,73 +178,16 @@ public class Client
 			e.printStackTrace();
 		}
 		
-		
-		
-		
-		
-		
-		
-//		while(reply[1] == Const.DATA && blockNumber_server == blockNumber_client && reply.length == 512)
-//		{
-//			
-//			
-//			String str = null;
-//			try {
-//				str = new String(reply, "UTF-8");
-//			} catch (UnsupportedEncodingException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-//			
-//			str = str.substring(4);
-//			
-//			try {
-//				bw.write(str);
-//			} catch (IOException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-//			
-//			reply = getMail();
-//		}
-//		
-//		String str = null;
-//		try 
-//		{
-//			str = new String(reply, "UTF-8");
-//		} 
-//		catch (UnsupportedEncodingException e) 
-//		{
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//		
-//		str = str.substring(4);
-//		
-//		try {
-//			bw.write(str);
-//		} 
-//		catch (IOException e) 
-//		{
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//		
-//		
-//		
-//		try 
-//		{
-//			bw.flush();
-//		} 
-//		catch (IOException e) 
-//		{
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-		
-		
-		
-		
+	}
+	
+	
+	/*
+	 * Fixing the cancer that is Java
+	 * Thanks to http://www.rgagnon.com/javadetails/java-0026.html
+	 */
+	private int unsignedByteToInt(byte b)
+	{
+		return (int) b & 0xFF;
 	}
 	
 	private byte[] createReadWriteRequest(byte opcode, String filepath, String mode)
