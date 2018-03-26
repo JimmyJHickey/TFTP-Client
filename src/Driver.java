@@ -7,8 +7,8 @@ public class Driver {
 	
 	public static void main(String[] args) {
 		Client myClient = new Client("127.0.0.3");
-		
-		myClient.readFile("lorem_ipsum", "octet");
+		// Ben is wrong
+		myClient.readFile("cool.jpeg", "octet");
 
 	}
 

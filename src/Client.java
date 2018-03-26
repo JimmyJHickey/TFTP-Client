@@ -3,6 +3,7 @@
 // 2018-3-23
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -11,9 +12,10 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.util.Random;
 
-
+import org.apache.commons.io.FileUtils;
 
 
 public class Client 
@@ -22,6 +24,11 @@ public class Client
 	private InetAddress serverAddress;
 	private int myPort;
 	private int serverPort;
+	
+	FileWriter fw = null;
+	BufferedWriter bw = null;
+	
+	File file = null;
 	
 	private DatagramSocket socket;
 	
@@ -103,25 +110,33 @@ public class Client
 	
 	public void readFile(String filepath, String mode)
 	{
-		FileWriter fw;
-		BufferedWriter bw = null;
-		try 
-		{
-			fw = new FileWriter(filepath);
-			bw = new BufferedWriter(fw);
-		} 
-		catch (IOException e) 
-		{
-			e.printStackTrace();
-		}
+
+		boolean isOctet = mode.toLowerCase().equals("octet");
+		byte reply[] = null;
 		
 		byte request[] = createReadWriteRequest(Const.RRQ, filepath, mode);
 		int blockNumber_client = 1;
 		int blockNumber_server = 0;
 		
-		sendPacket(request);
+		if(isOctet)
+		{
+			file = new File(filepath);
+			file.delete();
+		}
+		else
+		{
+			try 
+			{
+				fw = new FileWriter(filepath);
+				bw = new BufferedWriter(fw);
+			} 
+			catch (IOException e) 
+			{
+				e.printStackTrace();
+			}
+		}
 		
-		byte reply[] = null;
+		sendPacket(request);
 		
 		do
 		{
@@ -142,22 +157,10 @@ public class Client
 				System.err.printf("Incorrect Block Number. Got: %d Want: %d\n", blockNumber_server, blockNumber_client);
 			
 			
-			String str = null;
-			try 
-			{
-				str = new String(reply, 4, reply.length -4, "UTF-8");
-				bw.write(str);
-			} 
-			catch (UnsupportedEncodingException e) 
-			{
-				e.printStackTrace();
-			} 
-			catch (IOException e) 
-			{
-				e.printStackTrace();
-			}
-			
-			//System.out.printf("%s\n", str);
+			if(isOctet)
+				writeOctetToFile(reply);
+			else
+				writeAsciiToFile(reply);
 			
 			byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
 			sendPacket(ack);
@@ -169,17 +172,73 @@ public class Client
 		} while(reply.length == Const.PACKET_SIZE);
 		
 		
-		try 
+		if(isOctet)
 		{
-			bw.flush();
-		} 
-		catch (IOException e) 
+			file = null;
+		}
+		else
 		{
-			e.printStackTrace();
+			try 
+			{
+				bw.flush();
+				fw = null;
+				bw = null;
+			} 
+			catch (IOException e) 
+			{
+				e.printStackTrace();
+			}
 		}
 		
 	}
 	
+	
+	private boolean writeAsciiToFile(byte inArray[]) 
+	{
+		String str = null;
+		try 
+		{
+			str = new String(inArray, 4, inArray.length -4, "UTF-8");
+			
+			str = str.replaceAll("\r\n", System.lineSeparator());
+			
+			bw.write(str);
+		} 
+		catch (UnsupportedEncodingException e) 
+		{
+			e.printStackTrace();
+			return false;
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+			return false;
+		}
+		
+		
+		return true;	
+	}
+	
+	
+	private boolean writeOctetToFile(byte inArray[]) 
+	{
+		byte b[] = new byte[inArray.length -4];
+		
+		for(int i = 0; i < b.length; ++i)
+			b[i] = inArray[i + 4];
+		
+		try 
+		{
+			FileUtils.writeByteArrayToFile(file, b, true);
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+			return false;
+		}
+		
+		return true;	
+	}
 	
 	/*
 	 * Fixing the cancer that is Java
