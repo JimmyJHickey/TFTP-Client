@@ -11,7 +11,12 @@ public class Const
 	final static int MAX_PORT = 65535;
 	final static int RESERVED_PORTS = 1024;
 	final static int PACKET_SIZE = 516;
+	final static int HEADER_SIZE = 4;
+	final static int DATA_SIZE = PACKET_SIZE - HEADER_SIZE;
 	final static byte TERM = 0;
+	
+	final static int FIRST_BYTE_MASK = 0x000000FF;
+	final static int SECOND_BYTE_MASK = 0x0000FF00;
 	
 	// opcodes
 	final static byte RRQ = 1;

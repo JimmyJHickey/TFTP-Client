@@ -8,7 +8,8 @@ public class Driver {
 	public static void main(String[] args) {
 		Client myClient = new Client("127.0.0.3");
 		// Ben is wrong
-		myClient.readFile("cool.jpeg", "octet");
+//		myClient.getFile("cool.jpeg", "octet");
+		myClient.sendFile("lorem_ipsum", "netascii");
 
 	}
 
