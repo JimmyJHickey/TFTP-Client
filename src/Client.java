@@ -35,8 +35,6 @@ public class Client
 	
 	private DatagramSocket socket;
 	
-	byte overflow[] = null;
-	
 	
 	public Client(String serverAddress)
 	{
@@ -108,13 +106,18 @@ public class Client
 		}
 	}
 	
+	
+	/*
+	 * Gets a file from TFTP server using the given filepath and mode.
+	 */
 	public void getFile(String filepath, String mode)
 	{
 
 		boolean isOctet = mode.toLowerCase().equals("octet");
-		byte reply[] = null;
 		
+		byte reply[] = null;
 		byte request[] = createReadWriteRequest(Const.RRQ, filepath, mode);
+		
 		int blockNumber_client = 1;
 		int blockNumber_server = 0;
 		
@@ -136,19 +139,18 @@ public class Client
 			}
 		}
 		
+		// send the file request packet
 		sendPacket(request);
 		
+		// receive and save the data of the requested file
 		do
 		{
 			reply = getMail();
 			
-			blockNumber_server = 0;
-			blockNumber_server |= unsignedByteToInt(reply[2]);
-			blockNumber_server <<= 8;
-			blockNumber_server |= unsignedByteToInt(reply[3]);
+			blockNumber_server = getBlockNumber(reply);
 			
 			
-			if(reply[1] != Const.DATA)
+			if(getOpcode(reply) != Const.DATA)
 				// handle error
 				System.err.printf("Packet does not contain data. Opcode: %d", reply[1]);
 			
@@ -162,6 +164,7 @@ public class Client
 			else
 				writeAsciiToFile(reply);
 			
+			// build the ack using the raw block number from the servers packet
 			byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
 			sendPacket(ack);
 			
@@ -192,98 +195,11 @@ public class Client
 		
 	}
 	
-	public void sendFile(String filepath, String mode)
-	{
-		boolean isOctet = mode.toLowerCase().equals("octet");
-		file = new File(filepath);
-		
-		if(!file.exists()) 
-			System.out.printf("Everything sucks. There's no file\n");
-		
-		InputStream inStream = null;
-		try 
-		{
-			 inStream = new FileInputStream(file);
-		}
-		catch (FileNotFoundException e)
-		{
-			e.printStackTrace();
-		}
-		
-		byte data[] = createReadWriteRequest(Const.WRQ, filepath, mode);
-		
-		int blockNumber_client = 0;
-		int blockNumber_server = 0;
-		
-		/*
-		sendPacket(request);
-		
-		byte reply [] = getMail();
-		if(reply[0] != 0 || reply[1] != Const.ACK)
-			System.err.printf("Yo that ain't an ACK. It's an %d%d\n", reply[0], reply[1]);
-		
-		if(reply[2] != 0 || reply[3] != blockNumber_client)
-			System.err.printf("Yo that ain't tha right block. It's %d%d\n", reply[2], reply[3]);
-			*/
-		
-		//byte data[];
-		byte reply[];
-		byte inBytes[] = null;
-		do 
-		{
-			System.out.printf("sending the packet\n");
-			sendPacket(data);
-
-			
-			reply = getMail();
-			
-			blockNumber_server = 0;
-			blockNumber_server |= unsignedByteToInt(reply[2]);
-			blockNumber_server <<= 8;
-			blockNumber_server |= unsignedByteToInt(reply[3]);
-			
-			if(blockNumber_server != blockNumber_client)
-				System.err.printf("very bad\n");
-			
-			
-			if(data.length < Const.DATA_SIZE && blockNumber_client !=0)
-				break;
-			
-			blockNumber_client++;
-			
-			try 
-			{
-				
-				inBytes = IOUtils.toByteArray(inStream, Math.min(Const.DATA_SIZE, inStream.available()));
-			} 
-			catch (IOException e) 
-			{
-				e.printStackTrace();
-			}
-			
-
-			
-			System.out.printf("formatting write\n");
-			if(isOctet)
-				data = formatOctetWrite(inBytes);
-			else
-				data = formatAsciiWrite(inBytes);
-			
-			data[0] = Const.TERM;
-			data[1] = Const.DATA;
-			
-			data[2] = (byte)((blockNumber_client & Const.SECOND_BYTE_MASK) >> 8);
-			data[3] = (byte)(blockNumber_client & Const.FIRST_BYTE_MASK);
-			
-			System.out.printf("Data size: %d\n\n", data.length);
-			
-		}while(true);
-		
-		System.out.printf("am outside the while loop\n");
-		
-		
-	}
 	
+	/*
+	 * Writes an ASCII file to the local machine.
+	 * inArray is a raw packet from a TFTP server.
+	 */
 	private boolean writeAsciiToFile(byte inArray[]) 
 	{
 		String str = null;
@@ -311,6 +227,10 @@ public class Client
 	}
 	
 	
+	/*
+	 * Writes a binary file to the local machine.
+	 * inArray is a raw packet from a TFTP server.
+	 */
 	private boolean writeOctetToFile(byte inArray[]) 
 	{
 		byte b[] = new byte[inArray.length -4];
@@ -331,7 +251,92 @@ public class Client
 		return true;	
 	}
 	
-	private byte[] formatAsciiWrite(byte inArray[])
+	
+	/*
+	 * Sends a file to a TFTP server using the given filepath and mode.
+	 */
+	public void sendFile(String filepath, String mode)
+	{
+		boolean isOctet = mode.toLowerCase().equals("octet");
+		file = new File(filepath);
+		
+		if(!file.exists()) 
+			System.out.printf("Everything sucks. There's no file\n");
+		
+		InputStream inStream = null;
+		
+		try 
+		{
+			 inStream = new FileInputStream(file);
+		}
+		catch (FileNotFoundException e)
+		{
+			e.printStackTrace();
+		}
+		
+		byte data[] = createReadWriteRequest(Const.WRQ, filepath, mode);
+		
+		int blockNumber_client = 0;
+		int blockNumber_server = 0;
+		
+		byte reply[];
+		byte inBytes[] = null;
+		byte overflow[] = null;
+		
+		// send data packets, receive and verify acks, and build the next packet to send
+		for(;;)
+		{
+			sendPacket(data);
+
+			reply = getMail();
+			
+			if(getOpcode(reply) != Const.ACK)
+				System.err.printf("Yo that ain't an ACK. It's an %d%d\n", reply[0], reply[1]);
+				
+			blockNumber_server = getBlockNumber(reply);
+			
+			if(blockNumber_server != blockNumber_client)
+				System.err.printf("Yo that ain't tha right block. It's %d%d\n", reply[2], reply[3]);
+			
+			
+			// !!!   if it is not the first packet   !!!
+			// !!! and it is not the max packet size !!!
+			// !!!       we are done receiving       !!!
+			if(data.length < Const.DATA_SIZE && blockNumber_client !=0)
+				break;
+			
+			blockNumber_client++;
+			
+			try 
+			{
+				inBytes = IOUtils.toByteArray(inStream, Math.min(Const.DATA_SIZE, inStream.available()));
+			} 
+			catch (IOException e) 
+			{
+				e.printStackTrace();
+			}
+			
+			// put the data into the packet
+			if(isOctet)
+				data = formatOctetWrite(inBytes);
+			else
+				data = formatAsciiWrite(inBytes, overflow);
+			
+			
+			// build packet header
+			data[Const.OPCODE_MSB_OFFSET] = Const.TERM;
+			data[Const.OPCODE_LSB_OFFSET] = Const.DATA;
+			
+			data[Const.BLCK_NUM_MSB_OFFSET] = (byte)((blockNumber_client & Const.SECOND_BYTE_MASK) >> 8);
+			data[Const.BLCK_NUM_LSB_OFFSET] = (byte)(blockNumber_client & Const.FIRST_BYTE_MASK);			
+		} // end for(;;)		
+	}
+	
+	
+	/*
+	 * Formats an ASCII byte array to send to a TFTP server.
+	 */
+	private byte[] formatAsciiWrite(byte inArray[], byte overflow_buf[])
 	{		
 		String strBytes = null;
 		
@@ -344,49 +349,49 @@ public class Client
 			e.printStackTrace();
 		}
 		
+		// format text to fit netascii standard 
 		if(System.lineSeparator().equals("\n"))
 			strBytes = strBytes.replaceAll("\n", "\r\n");
 		
-		//System.out.printf("%s\n", strBytes);
 		
 		byte byteArray[] = strBytes.getBytes();
 		
-		int residualOverflow = (overflow == null ? 0 : overflow.length);
-		
+		int residualOverflow = (overflow_buf == null ? 0 : overflow_buf.length);
 		int numOverflow = Math.max(residualOverflow, (byteArray.length - Const.DATA_SIZE) + residualOverflow);
 		
-		
-		//System.out.printf("numOverflow: %d\nbyteArray.length: %d\n\n", numOverflow, byteArray.length);
+
 		byte data[] = new byte[Math.min(numOverflow + byteArray.length, Const.DATA_SIZE) + Const.HEADER_SIZE];
-		
-		
-		
 		int data_p = Const.HEADER_SIZE;
 		
-		int i;
-		for(i = 0; i < residualOverflow; ++i)
-			data[data_p++] = overflow[i];
+		
+		// fill the packet data
+		for(int i = 0; i < residualOverflow; ++i)
+			data[data_p++] = overflow_buf[i];
+		
+		for(int i = 0; i < byteArray.length - numOverflow; ++i)
+			data[data_p++] = byteArray[i];
 		
 		
-		int j;
-		for(j = 0; j < byteArray.length - numOverflow; ++j)
+		// if there is overflow save it into the overflow buffer
+		if(numOverflow > 0)
 		{
-			//System.out.printf("residualOverflow = %d\n", residualOverflow);
-			//System.out.printf("byteArray.length = %d\n", byteArray.length);
-			//System.out.printf("data.length = %d\n", data.length);
-			//System.out.printf("j = %d\n", j);
-			//System.out.printf("data_p = %d\n\n", data_p);
+			overflow_buf = new byte[numOverflow];
 			
-			data[data_p++] = byteArray[j];
+			for(int i = 0; i < numOverflow; ++i)
+				overflow_buf[i] = byteArray[byteArray.length - numOverflow +  i];
 		}
-		
-		overflow = new byte[numOverflow];
-		for(int k = 0; k < numOverflow; ++k)
-			overflow[k] = byteArray[byteArray.length - numOverflow +  k];
+		else
+		{
+			overflow_buf = null;
+		}
 				
 		return data;
 	}
 	
+	
+	/*
+	 * Formats a binary byte array to be sent to a TFTP server.
+	 */
 	private byte[] formatOctetWrite(byte inArray[])
 	{
 		byte data[] = new byte[inArray.length + Const.HEADER_SIZE];
@@ -396,8 +401,35 @@ public class Client
 		
 		
 		return data;
-}
+	}
 	
+	
+	/*
+	 * Returns the block number from the given packet data.
+	 */
+	private int getBlockNumber(byte[] data)
+	{
+		int blockNumber = 0;
+		blockNumber |= unsignedByteToInt(data[Const.BLCK_NUM_MSB_OFFSET]);
+		blockNumber <<= 8;
+		blockNumber |= unsignedByteToInt(data[Const.BLCK_NUM_LSB_OFFSET]);
+		
+		return blockNumber;
+	}
+	
+	
+	/*
+	 * Returns the opcode from the given packet data.
+	 */
+	private int getOpcode(byte[] data)
+	{
+		int code = 0;
+		code |= unsignedByteToInt(data[Const.OPCODE_MSB_OFFSET]);
+		code <<= 8;
+		code |= unsignedByteToInt(data[Const.OPCODE_LSB_OFFSET]);
+		
+		return code;
+	}
 	
 	/*
 	 * Fixing the cancer that is Java

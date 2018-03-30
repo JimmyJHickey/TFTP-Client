@@ -24,6 +24,12 @@ public class Const
 	final static byte DATA = 3;
 	final static byte ACK = 4;
 	final static byte ERROR = 5;
+	
+	// packet data locations
+	final static int OPCODE_MSB_OFFSET = 0;
+	final static int OPCODE_LSB_OFFSET = 1;
+	final static int BLCK_NUM_MSB_OFFSET = 2;
+	final static int BLCK_NUM_LSB_OFFSET = 3;
 
 	// Modes
 	final static String NETASCII = "netascii";
