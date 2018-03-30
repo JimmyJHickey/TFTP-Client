@@ -14,6 +14,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.Random;
 
@@ -36,6 +37,7 @@ public class Client
 	byte overflow_buf[] = null;
 	
 	private DatagramSocket socket;
+	private int timeoutCounter = 0;
 	
 	
 	public Client(String serverAddress)
@@ -53,6 +55,7 @@ public class Client
 			this.serverAddress = InetAddress.getByName(serverAddress);
 			
 			socket = new DatagramSocket(this.myPort, this.myAddress);
+			socket.setSoTimeout(Const.SOCKET_TIMEOUT);
 		} 
 		catch (UnknownHostException e) 
 		{
@@ -68,17 +71,26 @@ public class Client
 	{
 		byte[] buff = new byte[Const.PACKET_SIZE];
 		
+		
 		DatagramPacket packet = new DatagramPacket(buff, buff.length);
 		
-		try 
-		{
-			socket.receive(packet);
-		} 
-		catch (IOException e) 
-		{
-			
-			e.printStackTrace();
-		}
+		for(timeoutCounter = 0; timeoutCounter < Const.SOCKET_TIMEOUT_LIMIT; ++timeoutCounter)
+			try 
+			{
+				socket.receive(packet);
+				break;
+			} 
+			catch (SocketTimeoutException e)
+			{
+				System.err.printf("Timeout while reciveing, trying %d more times.\n", Const.SOCKET_TIMEOUT_LIMIT - timeoutCounter);
+			}
+			catch (IOException e) 
+			{
+				e.printStackTrace();
+			}
+		
+		if(timeoutCounter >= Const.SOCKET_TIMEOUT_LIMIT)
+			return null;
 		
 		if (serverPort == Const.TFTP_PORT) 
 		{
@@ -112,7 +124,7 @@ public class Client
 	/*
 	 * Gets a file from TFTP server using the given filepath and mode.
 	 */
-	public void getFile(String filepath, String mode)
+	public boolean getFile(String filepath, String mode)
 	{
 
 		boolean isOctet = mode.toLowerCase().equals("octet");
@@ -148,6 +160,12 @@ public class Client
 		do
 		{
 			reply = getMail();
+			
+			if(reply == null)
+			{
+				System.err.printf("Server is unresponsive, file download failed\n");
+				return false;
+			}
 			
 			blockNumber_server = getBlockNumber(reply);
 			
@@ -195,6 +213,7 @@ public class Client
 			}
 		}
 		
+		return true;
 	}
 	
 	
@@ -257,7 +276,7 @@ public class Client
 	/*
 	 * Sends a file to a TFTP server using the given filepath and mode.
 	 */
-	public void sendFile(String filepath, String mode)
+	public boolean sendFile(String filepath, String mode)
 	{
 		boolean isOctet = mode.toLowerCase().equals("octet");
 		file = new File(filepath);
@@ -294,6 +313,12 @@ public class Client
 
 			reply = getMail();
 			
+			if(reply == null)
+			{
+				System.err.printf("Server is unresponsive, file upload failed\n");
+				return false;
+			}
+			
 			if(getOpcode(reply) != Const.ACK)
 				System.err.printf("Yo that ain't an ACK. It's an %d%d\n", reply[0], reply[1]);
 				
@@ -329,14 +354,15 @@ public class Client
 				data = formatAsciiWrite(inBytes);
 			
 			
-			
 			// build packet header
 			data[Const.OPCODE_MSB_OFFSET] = Const.TERM;
 			data[Const.OPCODE_LSB_OFFSET] = Const.DATA;
 			
 			data[Const.BLCK_NUM_MSB_OFFSET] = (byte)((blockNumber_client & Const.SECOND_BYTE_MASK) >> 8);
 			data[Const.BLCK_NUM_LSB_OFFSET] = (byte)(blockNumber_client & Const.FIRST_BYTE_MASK);			
-		} // end for(;;)		
+		} // end for(;;)	
+		
+		return true;
 	}
 	
 	
