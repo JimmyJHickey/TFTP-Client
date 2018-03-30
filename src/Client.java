@@ -33,6 +33,8 @@ public class Client
 	
 	File file = null;
 	
+	byte overflow_buf[] = null;
+	
 	private DatagramSocket socket;
 	
 	
@@ -260,6 +262,9 @@ public class Client
 		boolean isOctet = mode.toLowerCase().equals("octet");
 		file = new File(filepath);
 		
+		long fileLength = file.length();
+		long bytesRead = 0;
+		
 		if(!file.exists()) 
 			System.out.printf("Everything sucks. There's no file\n");
 		
@@ -281,7 +286,6 @@ public class Client
 		
 		byte reply[];
 		byte inBytes[] = null;
-		byte overflow[] = null;
 		
 		// send data packets, receive and verify acks, and build the next packet to send
 		for(;;)
@@ -309,18 +313,21 @@ public class Client
 			
 			try 
 			{
-				inBytes = IOUtils.toByteArray(inStream, Math.min(Const.DATA_SIZE, inStream.available()));
+				inBytes = IOUtils.toByteArray(inStream, Math.min(Const.DATA_SIZE, fileLength - bytesRead));
 			} 
 			catch (IOException e) 
 			{
 				e.printStackTrace();
 			}
 			
+			bytesRead += Const.DATA_SIZE;
+			
 			// put the data into the packet
 			if(isOctet)
 				data = formatOctetWrite(inBytes);
 			else
-				data = formatAsciiWrite(inBytes, overflow);
+				data = formatAsciiWrite(inBytes);
+			
 			
 			
 			// build packet header
@@ -336,7 +343,7 @@ public class Client
 	/*
 	 * Formats an ASCII byte array to send to a TFTP server.
 	 */
-	private byte[] formatAsciiWrite(byte inArray[], byte overflow_buf[])
+	private byte[] formatAsciiWrite(byte inArray[])
 	{		
 		String strBytes = null;
 		
@@ -353,23 +360,28 @@ public class Client
 		if(System.lineSeparator().equals("\n"))
 			strBytes = strBytes.replaceAll("\n", "\r\n");
 		
+		System.out.printf("%s\n", strBytes);
+		
 		
 		byte byteArray[] = strBytes.getBytes();
 		
+		// overflow from last packet
 		int residualOverflow = (overflow_buf == null ? 0 : overflow_buf.length);
-		int numOverflow = Math.max(residualOverflow, (byteArray.length - Const.DATA_SIZE) + residualOverflow);
 		
-
-		byte data[] = new byte[Math.min(numOverflow + byteArray.length, Const.DATA_SIZE) + Const.HEADER_SIZE];
+		// the overflow that will be created by this packet
+		int numOverflow = Math.max(0, (byteArray.length - Const.DATA_SIZE) + residualOverflow);
+		
+		// that data we are sending is either the size of the old overlow + the data in,
+		//  or the max data packet size, which ever is _smaller_
+		byte data[] = new byte[Math.min(residualOverflow + byteArray.length, Const.DATA_SIZE) + Const.HEADER_SIZE];
 		int data_p = Const.HEADER_SIZE;
-		
 		
 		// fill the packet data
 		for(int i = 0; i < residualOverflow; ++i)
 			data[data_p++] = overflow_buf[i];
 		
 		for(int i = 0; i < byteArray.length - numOverflow; ++i)
-			data[data_p++] = byteArray[i];
+			data[data_p++] = byteArray[i];		
 		
 		
 		// if there is overflow save it into the overflow buffer
