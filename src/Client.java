@@ -54,7 +54,7 @@ public class Client
 			serverPort = Const.TFTP_PORT;
 			this.serverAddress = InetAddress.getByName(serverAddress);
 			
-			socket = new DatagramSocket(this.myPort, this.myAddress);
+			socket = new DatagramSocket();
 			socket.setSoTimeout(Const.SOCKET_TIMEOUT);
 		} 
 		catch (UnknownHostException e) 
@@ -70,7 +70,6 @@ public class Client
 	private byte[] getMail()
 	{
 		byte[] buff = new byte[Const.PACKET_SIZE];
-		
 		
 		DatagramPacket packet = new DatagramPacket(buff, buff.length);
 		
@@ -354,6 +353,7 @@ public class Client
 				data = formatAsciiWrite(inBytes);
 			
 			
+			
 			// build packet header
 			data[Const.OPCODE_MSB_OFFSET] = Const.TERM;
 			data[Const.OPCODE_LSB_OFFSET] = Const.DATA;
@@ -482,9 +482,9 @@ public class Client
 	{
 		mode = mode.toLowerCase();
 		
-		if(mode != Const.NETASCII && mode != Const.OCTET)
+		if(!mode.equals(Const.NETASCII) && !mode.equals(Const.OCTET))
 		{
-			System.err.printf("Bad mode: %s does not exist. Try \"netascii\" or \"octet\".\n", mode);
+			System.err.printf("Bad mode: %s does not exist. Try \"%s\" or \"%s\".\n", mode, Const.OCTET, Const.NETASCII);
 			return null;
 		}
 		
@@ -534,15 +534,16 @@ public class Client
 			
 		}
 		
-		
-		
 		return request;
 	}
 	
 
 	public static void main(String[] args) 
 	{
-		
+		Client myClient = new Client("192.168.0.12");
+		// Ben is wrong
+//		myClient.getFile("cool.jpeg", "octet");
+		myClient.sendFile("lorem_ipsum", "netascii");
 
 	}
 
