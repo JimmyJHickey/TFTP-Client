@@ -24,9 +24,7 @@ import org.apache.commons.io.IOUtils;
 
 public class Client 
 {
-	private InetAddress myAddress;
 	private InetAddress serverAddress;
-	private int myPort;
 	private int serverPort;
 	
 	FileWriter fw = null;
@@ -41,16 +39,9 @@ public class Client
 	
 	
 	public Client(String serverAddress)
-	{
-		Random ran = new Random();
-		
+	{		
 		try 
 		{
-			// get a port number between 1024 and 65535
-			myPort = ran.nextInt(Const.MAX_PORT - Const.RESERVED_PORTS) + Const.RESERVED_PORTS;
-			this.myAddress = InetAddress.getLocalHost();
-			
-			
 			serverPort = Const.TFTP_PORT;
 			this.serverAddress = InetAddress.getByName(serverAddress);
 			
@@ -67,7 +58,7 @@ public class Client
 		}
 	}
 	
-	private byte[] getMail()
+	private byte[] getMail(byte[] resend_buf, boolean resend)
 	{
 		byte[] buff = new byte[Const.PACKET_SIZE];
 		
@@ -81,7 +72,10 @@ public class Client
 			} 
 			catch (SocketTimeoutException e)
 			{
-				System.err.printf("Timeout while reciveing, trying %d more times.\n", Const.SOCKET_TIMEOUT_LIMIT - timeoutCounter);
+				System.err.printf("Timeout while reciveing, trying %d more times.\n", Const.SOCKET_TIMEOUT_LIMIT - timeoutCounter -1);
+				
+				if(resend)
+					sendPacket(resend_buf);
 			}
 			catch (IOException e) 
 			{
@@ -155,11 +149,11 @@ public class Client
 		// send the file request packet
 		sendPacket(request);
 		
+		reply = getMail(request, false);
+		
 		// receive and save the data of the requested file
 		do
 		{
-			reply = getMail();
-			
 			if(reply == null)
 			{
 				System.err.printf("Server is unresponsive, file download failed\n");
@@ -187,10 +181,11 @@ public class Client
 			byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
 			sendPacket(ack);
 			
-			if(++blockNumber_client > 65535)
+			reply = getMail(ack, true);
+			
+			if(++blockNumber_client > Const.MAX_BLOCK_NUMBER)
 				blockNumber_client = 0;
-		
-		
+			
 		} while(reply.length == Const.PACKET_SIZE);
 		
 		
@@ -310,7 +305,7 @@ public class Client
 		{
 			sendPacket(data);
 
-			reply = getMail();
+			reply = getMail(data, true);
 			
 			if(reply == null)
 			{
@@ -333,7 +328,9 @@ public class Client
 			if(data.length < Const.DATA_SIZE && blockNumber_client !=0)
 				break;
 			
-			blockNumber_client++;
+			
+			if(++blockNumber_client > Const.MAX_BLOCK_NUMBER)
+				blockNumber_client = 0;
 			
 			try 
 			{

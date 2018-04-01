@@ -8,8 +8,6 @@
 public final class Const 
 {
 	public final static int TFTP_PORT = 69;
-	public final static int MAX_PORT = 65535;
-	public final static int RESERVED_PORTS = 1024;
 	public final static int PACKET_SIZE = 516;
 	public final static int HEADER_SIZE = 4;
 	public final static int DATA_SIZE = PACKET_SIZE - HEADER_SIZE;
@@ -20,6 +18,8 @@ public final class Const
 	
 	public final static int SOCKET_TIMEOUT = 5000; // milliseconds
 	public final static int SOCKET_TIMEOUT_LIMIT = 3;
+	
+	public final static int MAX_BLOCK_NUMBER = 65535;
 	
 	// opcodes
 	public final static byte RRQ = 1;
