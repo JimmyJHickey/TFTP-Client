@@ -96,6 +96,14 @@ public class Client
 		for(int i = 0; i < data.length; ++i)
 			data[i] = buff[i];
 		
+		if(getOpcode(data) == Const.ERROR)
+		{
+			System.err.printf("Error! Error Code: %d\n", getBlockNumber(data));
+			System.err.printf("%s\n", new String(data, Const.HEADER_SIZE, data.length -Const.HEADER_SIZE));
+			return null;
+		}
+			
+		
 		return data;
 	}
 	
@@ -152,7 +160,7 @@ public class Client
 		reply = getMail(request, false);
 		
 		// receive and save the data of the requested file
-		while(reply.length == Const.PACKET_SIZE)
+		while(reply != null && reply.length == Const.PACKET_SIZE)
 		{
 			blockNumber_server = getBlockNumber(reply);
 			
@@ -189,9 +197,12 @@ public class Client
 		} // end while
 		
 		
-		// send the last ack
-		byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
-		sendPacket(ack);
+		// send the last ack only if the last reply was not an error
+		if(reply != null)
+		{
+			byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
+			sendPacket(ack);
+		}
 		
 		
 		if(isOctet)
@@ -225,7 +236,7 @@ public class Client
 		String str = null;
 		try 
 		{
-			str = new String(inArray, 4, inArray.length -4, "UTF-8");
+			str = new String(inArray, Const.HEADER_SIZE, inArray.length -Const.HEADER_SIZE, "UTF-8");
 			
 			str = str.replaceAll("\r\n", System.lineSeparator());
 			
@@ -542,10 +553,10 @@ public class Client
 
 	public static void main(String[] args) 
 	{
-		Client myClient = new Client("192.168.0.12");
-		// Ben is wrong
-//		myClient.getFile("cool.jpeg", "octet");
-		myClient.sendFile("lorem_ipsum", "netascii");
+		Client myClient = new Client("199.17.162.220");
+		// Ben is right this time
+		myClient.getFile("blarg", "octet");
+//		myClient.sendFile("lorem_ipsum", "netascii");
 
 	}
 
