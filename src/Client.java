@@ -152,14 +152,8 @@ public class Client
 		reply = getMail(request, false);
 		
 		// receive and save the data of the requested file
-		do
+		while(reply.length == Const.PACKET_SIZE)
 		{
-			if(reply == null)
-			{
-				System.err.printf("Server is unresponsive, file download failed\n");
-				return false;
-			}
-			
 			blockNumber_server = getBlockNumber(reply);
 			
 			
@@ -183,10 +177,21 @@ public class Client
 			
 			reply = getMail(ack, true);
 			
+			if(reply == null)
+			{
+				System.err.printf("Server is unresponsive, file download failed\n");
+				return false;
+			}
+			
 			if(++blockNumber_client > Const.MAX_BLOCK_NUMBER)
 				blockNumber_client = 0;
 			
-		} while(reply.length == Const.PACKET_SIZE);
+		} // end while
+		
+		
+		// send the last ack
+		byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
+		sendPacket(ack);
 		
 		
 		if(isOctet)
