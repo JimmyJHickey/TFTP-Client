@@ -43,6 +43,8 @@ public class Driver
 		
 		String mode = Const.OCTET;
 		
+		boolean success;
+		
 		
 		// intercept command line arguments
 		if(args.length == 1)
@@ -116,7 +118,12 @@ public class Driver
 					{
 						client = new Client(serverIP);
 						
-						client.getFile(lineArgs[1], mode);
+						success = client.getFile(lineArgs[1], mode);
+						
+						if(success)
+							System.out.printf("File upload successful\n");
+						else
+							System.out.printf("Error\n");
 					}
 					else
 					{
@@ -131,7 +138,13 @@ public class Driver
 					{
 						client = new Client(serverIP);
 						
-						client.sendFile(lineArgs[1], mode);
+						success = client.sendFile(lineArgs[1], mode);
+						
+						if(success)
+							System.out.printf("File upload successful\n");
+						else
+							System.out.printf("Error\n");
+						
 					}
 					else
 					{

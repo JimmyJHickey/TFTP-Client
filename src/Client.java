@@ -133,6 +133,9 @@ public class Client
 		byte reply[] = null;
 		byte request[] = createReadWriteRequest(Const.RRQ, filepath, mode);
 		
+		if(request == null)
+			return false;
+		
 		int blockNumber_client = 1;
 		int blockNumber_server = 0;
 		
@@ -295,7 +298,11 @@ public class Client
 		long bytesRead = 0;
 		
 		if(!file.exists()) 
-			System.out.printf("Everything sucks. There's no file\n");
+		{
+			System.err.printf("Could not find specified file\n");
+			return false;
+		}
+			
 		
 		InputStream inStream = null;
 		
@@ -309,6 +316,9 @@ public class Client
 		}
 		
 		byte data[] = createReadWriteRequest(Const.WRQ, filepath, mode);
+		
+		if(data == null)
+			return false;
 		
 		int blockNumber_client = 0;
 		int blockNumber_server = 0;
@@ -515,9 +525,10 @@ public class Client
 		//
 		//                   	RRQ/WRQ packet
 		
-		byte[] request = new byte[4 + filepath.length() + mode.length()];
-		System.out.printf("Length of array %d\n", request.length);
+		byte[] request = new byte[4 + filepath.length() + mode.length()];		
 		
+		// this for loop is evil
+		//  i gets incremented in multiple places within it
 		for(int i = 0; i < request.length; ++i)
 		{
 			if(i == 0)
@@ -528,7 +539,9 @@ public class Client
 			{
 				for(int j = 0; j < filepath.length(); ++j)
 					if( (int)filepath.charAt(j) < 256 )
+					{
 						request[i++] = (byte) filepath.charAt(j);
+					}
 					else
 					{
 						System.err.printf("Character '%c' is not ascii\n", filepath.charAt(j));
@@ -541,7 +554,6 @@ public class Client
 				for(int j = 0; j < mode.length(); ++j)
 					request[i++] = (byte) mode.charAt(j);
 				
-				System.out.printf("i = %d\n", i);
 				request[i] = Const.TERM;
 			}
 			
