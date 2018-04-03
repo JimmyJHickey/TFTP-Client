@@ -37,4 +37,21 @@ public final class Const
 	// Modes
 	public final static String NETASCII = "netascii";
 	public final static String OCTET = "octet";
+	
+	
+	// driver help strings
+	public final static String HELP_CONNECT = "\tconnect <IPv4 Address>\tSpecify the address of the TFTP server to interact with.\n";
+	public final static String HELP_MODE = "\tmode [octet, netascii]\tThe operating mode of the file transfers.\n";
+	public final static String HELP_GET = "\tget <filepath>\tDownload the given file from the selected server.\n";
+	public final static String HELP_PUT = "\tput <filepath>\tUpload the given file to the selected server.\n";
+	public final static String HELP_STATUS = "\tstatus\tShow the current status\n";
+	public final static String HELP_EXIT = "\texit\tExit JavaTFTP\n";
+	public final static String HELP_QUIT = "\tquit\talias for exit\n";
+	public final static String HELP_HELP = "\thelp\tShow this help\n";
+	public final static String MALFORMED = "Malformed command\n";
+
+
+
+
+
 }
