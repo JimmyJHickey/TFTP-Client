@@ -44,7 +44,7 @@ public class Driver
 		String mode = Const.OCTET;
 		
 		
-		// intercept command line arguements
+		// intercept command line arguments
 		if(args.length == 1)
 		{
 			if(args[0].equals("help"))
@@ -60,7 +60,7 @@ public class Driver
 		}
 		else if(args.length > 1)
 		{
-			System.out.printf("Only one command line arguement is supported.\n");
+			System.out.printf("Only one command line argument is supported.\n");
 			System.out.printf("Choose from: <IPv4 Address> or \"help\"\n");
 		}
 			
