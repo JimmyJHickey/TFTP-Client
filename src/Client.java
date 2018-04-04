@@ -200,9 +200,14 @@ public class Client
 		} // end while
 		
 		
-		// send the last ack only if the last reply was not an error
+		// send the last ack and save the last data packet only if the last reply was not an error
 		if(reply != null)
 		{
+			if(isOctet)
+				writeOctetToFile(reply);
+			else
+				writeAsciiToFile(reply);
+			
 			byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
 			sendPacket(ack);
 		}
@@ -242,6 +247,11 @@ public class Client
 			str = new String(inArray, Const.HEADER_SIZE, inArray.length -Const.HEADER_SIZE, "UTF-8");
 			
 			str = str.replaceAll("\r\n", System.lineSeparator());
+			
+			// if the "\r\n" is split into two packets their will be a trailing
+			//  '\r' at the end of this string that does not get caught by the replace all
+			if(System.lineSeparator().equals("\n") && str.charAt(str.length() -1) == '\r')
+				str = str.replace("\r", "");
 			
 			bw.write(str);
 		} 
@@ -296,6 +306,7 @@ public class Client
 		
 		long fileLength = file.length();
 		long bytesRead = 0;
+		long bytesToRead;
 		
 		if(!file.exists()) 
 		{
@@ -355,26 +366,52 @@ public class Client
 				break;
 			
 			
+			// else prepare the next block to be sent
+			
 			if(++blockNumber_client > Const.MAX_BLOCK_NUMBER)
 				blockNumber_client = 0;
 			
-			try 
-			{
-				inBytes = IOUtils.toByteArray(inStream, Math.min(Const.DATA_SIZE, fileLength - bytesRead));
-			} 
-			catch (IOException e) 
-			{
-				e.printStackTrace();
+			// if in ASCII mode and the overflow buffer has filled larger than DATA_SIZE
+			// we need to empty it before sending any new data
+			if(mode.equals(Const.NETASCII) && overflow_buf != null && overflow_buf.length >= Const.DATA_SIZE)
+			{				
+				data = new byte[Const.PACKET_SIZE];
+				
+				// move the data to be sent out out of the overflow buffer
+				System.arraycopy(overflow_buf, 0, data, Const.HEADER_SIZE, Const.DATA_SIZE);
+				
+				// copy the overflow buffer
+				byte overflow_cp[] = new byte[overflow_buf.length];
+				System.arraycopy(overflow_buf, 0, overflow_cp, 0, overflow_buf.length);
+				
+				// create new overflow buffer from the overflow from sending the overflow
+				overflow_buf = new byte[overflow_buf.length - Const.DATA_SIZE];
+				System.arraycopy(overflow_cp, Const.DATA_SIZE, overflow_buf, 0, overflow_buf.length);
+								
 			}
-			
-			bytesRead += Const.DATA_SIZE;
-			
-			// put the data into the packet
-			if(isOctet)
-				data = formatOctetWrite(inBytes);
 			else
-				data = formatAsciiWrite(inBytes);
-			
+			{
+				bytesToRead = Math.min(Const.DATA_SIZE, fileLength - bytesRead);
+				
+				try 
+				{
+					inBytes = IOUtils.toByteArray(inStream, bytesToRead);
+				} 
+				catch (IOException e) 
+				{
+					e.printStackTrace();
+				}
+				
+				bytesRead += bytesToRead;
+				
+				System.out.printf("bytes read: %d\n", bytesRead);
+				
+				// put the data into the packet
+				if(isOctet)
+					data = formatOctetWrite(inBytes);
+				else
+					data = formatAsciiWrite(inBytes);
+			}
 			
 			
 			// build packet header
@@ -408,8 +445,6 @@ public class Client
 		// format text to fit netascii standard 
 		if(System.lineSeparator().equals("\n"))
 			strBytes = strBytes.replaceAll("\n", "\r\n");
-		
-		System.out.printf("%s\n", strBytes);
 		
 		
 		byte byteArray[] = strBytes.getBytes();
@@ -463,7 +498,7 @@ public class Client
 		
 		return data;
 	}
-	
+		
 	
 	/*
 	 * Returns the block number from the given packet data.
@@ -565,10 +600,10 @@ public class Client
 
 	public static void main(String[] args) 
 	{
-		Client myClient = new Client("199.17.162.220");
+		Client myClient = new Client("127.0.0.3");
 		// Ben is right this time
-		myClient.getFile("blarg", "octet");
-//		myClient.sendFile("lorem_ipsum", "netascii");
+		//myClient.getFile("lorem_100000", "netascii");
+		myClient.sendFile("lorem_lines", "netascii");
 
 	}
 

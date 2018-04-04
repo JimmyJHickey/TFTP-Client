@@ -121,7 +121,7 @@ public class Driver
 						success = client.getFile(lineArgs[1], mode);
 						
 						if(success)
-							System.out.printf("File upload successful\n");
+							System.out.printf("File download successful\n");
 						else
 							System.out.printf("Error\n");
 					}
