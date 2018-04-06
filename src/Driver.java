@@ -87,6 +87,8 @@ public class Driver
 			
 			switch(lineArgs[0])
 			{
+				case "":
+					break;
 				case "connect":
 					if(lineArgs.length == 2)
 					{
