@@ -28,6 +28,27 @@ public final class Const
 	public final static byte ACK = 4;
 	public final static byte ERROR = 5;
 	
+	// error codes
+	public final static int EC_NOTDEF = 0;
+	public final static int EC_NOTFOUND = 1;
+	public final static int EC_ACCVIO = 2;
+	public final static int EC_DISKFULL = 3;
+	public final static int EC_ILLEGAL = 4;
+	public final static int EC_UNKNOWN = 5;
+	public final static int EC_FILEEXIST = 6;
+	public final static int EC_NOUSER = 7;
+	
+	// error messages
+	public final static String EM_NOTDEF = "Unknown error. ¯\\_(^.^)_/¯";
+	public final static String EM_NOTFOUND = "File not found.";
+	public final static String EM_ACCVIO = "Access violation.";
+	public final static String EM_DISKFULL = "Disk full or allocation exceeded.";
+	public final static String EM_ILLEGAL = "Illegal TFTP operation.";
+	public final static String EM_UNKNOWN = "Unknown transfer ID.";
+	public final static String EM_FILEEXIST = "File already exists.";
+	public final static String EM_NOUSER = "No such user.";
+	
+	
 	// packet data locations
 	public final static int OPCODE_MSB_OFFSET = 0;
 	public final static int OPCODE_LSB_OFFSET = 1;

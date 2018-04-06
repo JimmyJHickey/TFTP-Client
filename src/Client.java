@@ -50,11 +50,11 @@ public class Client
 		} 
 		catch (UnknownHostException e) 
 		{
-			e.printStackTrace();
+			System.err.printf("Unkown Host.\n");
 		} 
 		catch (SocketException e) 
 		{
-			e.printStackTrace();
+			System.err.printf("Unable to create socket.\n");
 		}
 	}
 	
@@ -79,7 +79,9 @@ public class Client
 			}
 			catch (IOException e) 
 			{
-				e.printStackTrace();
+				System.err.printf("Unknown error receiving file.\n");
+				
+				return null;
 			}
 		
 		if(timeoutCounter >= Const.SOCKET_TIMEOUT_LIMIT)
@@ -117,7 +119,7 @@ public class Client
 		} 
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.err.printf("Unknown error sending packet.\n");
 		}
 	}
 	
@@ -153,7 +155,7 @@ public class Client
 			} 
 			catch (IOException e) 
 			{
-				e.printStackTrace();
+				System.err.printf("Unknown error opening file.\n");
 			}
 		}
 		
@@ -169,12 +171,21 @@ public class Client
 			
 			
 			if(getOpcode(reply) != Const.DATA)
+			{
 				// handle error
 				System.err.printf("Packet does not contain data. Opcode: %d", reply[1]);
+				System.err.printf("Expected data packet (opcode %d). Got opcode %d\n", Const.DATA, getOpcode(reply));
+				return false;
+				
+			}
 			
 			if(blockNumber_server != blockNumber_client)
-				 // very bad things
-				System.err.printf("Incorrect Block Number. Got: %d Want: %d\n", blockNumber_server, blockNumber_client);
+			{
+				// a repeat ACK on the network will kill us, whoops
+				System.err.printf("Expected block number %d. Got block number %d\n", blockNumber_client, blockNumber_server);
+				sendErrorPacket(Const.EC_UNKNOWN);
+				return false;
+			}
 			
 			
 			if(isOctet)
@@ -227,7 +238,8 @@ public class Client
 			} 
 			catch (IOException e) 
 			{
-				e.printStackTrace();
+				System.err.printf("Error writing to file.\n");
+				return false;
 			}
 		}
 		
@@ -251,18 +263,22 @@ public class Client
 			// if the "\r\n" is split into two packets their will be a trailing
 			//  '\r' at the end of this string that does not get caught by the replace all
 			if(System.lineSeparator().equals("\n") && str.charAt(str.length() -1) == '\r')
-				str = str.replace("\r", "");
+				str = str.substring(0, str.length() -1);
 			
 			bw.write(str);
 		} 
 		catch (UnsupportedEncodingException e) 
 		{
-			e.printStackTrace();
+			System.err.printf("Text Encoding error.\n");
+			
+			sendErrorPacket(Const.EC_NOTDEF);
 			return false;
 		} 
 		catch (IOException e) 
 		{
-			e.printStackTrace();
+			System.err.printf("Unknown IO error.\n");
+			
+			sendErrorPacket(Const.EC_NOTDEF);
 			return false;
 		}
 		
@@ -288,7 +304,9 @@ public class Client
 		} 
 		catch (IOException e) 
 		{
-			e.printStackTrace();
+			System.err.printf("Error writing to file.\n");
+			
+			sendErrorPacket(Const.EC_DISKFULL);
 			return false;
 		}
 		
@@ -323,7 +341,9 @@ public class Client
 		}
 		catch (FileNotFoundException e)
 		{
-			e.printStackTrace();
+			System.out.printf("Error opening file.\n");
+			
+			return false;
 		}
 		
 		byte data[] = createReadWriteRequest(Const.WRQ, filepath, mode);
@@ -351,13 +371,20 @@ public class Client
 			}
 			
 			if(getOpcode(reply) != Const.ACK)
-				System.err.printf("Yo that ain't an ACK. It's an %d%d\n", reply[0], reply[1]);
+			{
+				System.err.printf("Expected ACK (opcode %d). Got opcode %d%d\n", Const.ACK, reply[0], reply[1]);
+				sendErrorPacket(Const.EC_UNKNOWN);
+				return false;
+			}
 				
 			blockNumber_server = getBlockNumber(reply);
 			
 			if(blockNumber_server != blockNumber_client)
-				System.err.printf("Yo that ain't tha right block. It's %d%d\n", reply[2], reply[3]);
-			
+			{
+				System.err.printf("Expected block number %d. Got block number %d\n", blockNumber_client, blockNumber_server);
+				sendErrorPacket(Const.EC_UNKNOWN);
+				return false;
+			}
 			
 			// !!!   if it is not the first packet   !!!
 			// !!! and it is not the max packet size !!!
@@ -399,7 +426,9 @@ public class Client
 				} 
 				catch (IOException e) 
 				{
-					e.printStackTrace();
+					System.err.printf("Error reading from file.\n");
+					
+					return false;
 				}
 				
 				bytesRead += bytesToRead;
@@ -439,7 +468,9 @@ public class Client
 		} 
 		catch (UnsupportedEncodingException e) 
 		{
-			e.printStackTrace();
+			System.err.printf("Unknown text encoding.\n");
+			
+			return null;
 		}
 		
 		// format text to fit netascii standard 
@@ -598,6 +629,70 @@ public class Client
 	}
 	
 
+	private void sendErrorPacket(int errorCode)
+	{
+		String errorMessage;
+		switch (errorCode)
+		{
+			case Const.EC_NOTDEF:
+				errorMessage = Const.EM_NOTDEF;
+				break;
+				
+			case Const.EC_NOTFOUND:
+				errorMessage = Const.EM_NOTFOUND;
+				break;
+				
+			case Const.EC_ACCVIO:
+				errorMessage = Const.EM_ACCVIO;
+				break;
+				
+			case Const.EC_DISKFULL:
+				errorMessage = Const.EM_DISKFULL;
+				break;
+				
+			case Const.EC_ILLEGAL:
+				errorMessage = Const.EM_ILLEGAL;
+				break;
+				
+			case Const.EC_UNKNOWN:
+				errorMessage = Const.EM_UNKNOWN;
+				break;
+				
+			case Const.EC_FILEEXIST:
+				errorMessage = Const.EM_FILEEXIST;
+				break;
+				
+			case Const.EC_NOUSER:
+				errorMessage = Const.EM_NOUSER;
+				break;
+				
+			default:
+				System.err.printf("WTF\n");
+				return;	
+		}
+		byte errorPacket [] = new byte[Const.HEADER_SIZE + errorMessage.length() + 1];
+		
+		// Op code
+		errorPacket[Const.OPCODE_MSB_OFFSET] = 0;
+		errorPacket[Const.OPCODE_LSB_OFFSET]= Const.ERROR;
+		
+		// Error code
+		errorPacket[Const.BLCK_NUM_MSB_OFFSET] = 0;
+		errorPacket[Const.BLCK_NUM_LSB_OFFSET] = (byte) errorCode;
+		
+		// Error message
+		System.arraycopy(errorMessage.getBytes(), 0, errorPacket, Const.HEADER_SIZE, errorMessage.length());
+		
+		// End packet
+		errorPacket[errorPacket.length - 1] = Const.TERM;
+		
+		
+		System.err.printf("%s\n", errorMessage);
+		sendPacket(errorPacket);
+		return;
+		
+	}
+	
 	public static void main(String[] args) 
 	{
 		Client myClient = new Client("127.0.0.3");
