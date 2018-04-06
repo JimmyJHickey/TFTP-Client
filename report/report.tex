@@ -1,0 +1,113 @@
+\documentclass[12pt]{article}
+
+% Margins
+\usepackage[letterpaper, top=1in, bottom=1in, left=1in, right=1in]{geometry}
+
+% SI Units
+\usepackage{siunitx}
+
+%  BibTek
+\usepackage{cite}
+
+% For prettier tables
+\usepackage{array}
+
+% Text over arrows
+\usepackage{mathtools}
+
+% For code
+\usepackage{courier}
+\usepackage{listings}
+\lstset{ mathescape }
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true}
+
+% Clickable Table of Contents
+\usepackage{color}   %May be necessary if you want to color links
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true, %set true if you want colored links
+	linktoc=all,     %set to all if you want both sections and subsections linked
+	linkcolor=black,  %choose some color if you want links to stand out
+}
+
+% Change Font
+\usepackage[sfdefault]{roboto}  %% Option 'sfdefault' only if the base font of the document is to be sans serif
+\usepackage[T1]{fontenc}
+
+% For slashthroughs
+\usepackage{cancel}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{fancyhdr}
+
+\pagenumbering{arabic}
+
+% For double spacing
+\usepackage{setspace}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{fancyhdr}
+
+\pagenumbering{arabic}
+
+\pagestyle{fancy}
+\rhead{Andrews, Diedrick, Hickey}
+
+\lhead{TFTP Report}
+
+% Add \tab command
+\newcommand\tab[1][1cm]{\hspace*{#1}}
+
+%opening
+\title{Trivial File Transfer Protocol}
+\author{Ben Andrews, Will Diedrick, Jimmy Hickey\\CS 413: Advanced Networking and Telecommunications}
+
+
+
+\begin{document}
+\maketitle
+\tableofcontents
+\clearpage
+
+\doublespacing
+
+\section{Testing}
+
+To test our client, we connected to a local TFTP server. We set up the server using the \lstinline|tftpd-hpa| package for Linux. We bound it to a local IP address (127.0.0.3) and were able to control the files in its directory. We sent packets to this server and monitored the traffic on Wireshark. We also tested over a switch.
+
+We used the Linux \lstinline|diff| command to determine whether the files were the same. Additionally, we sent the same file using the built in TFTP utility and our client. We \lstinline|diff|'d them to check if they were the same. We repeated this process for receiving. 
+
+Things we tested:
+\singlespacing
+\begin{itemize}
+\item Text files
+\item Images
+\item Files of various sizes
+\item Octet and netascii sending modes
+\item Carriage return + new line spanning two packets
+\item Packets of 512 bytes in length
+\item Packets less than 512 bytes in length
+\item Packets of 0 bytes in length
+\item Temporary disconnects (testing the timeout functionality)
+\end{itemize}
+\doublespacing
+
+\section{Difficulties}
+Shorts into unsigned bytes
+
+Carriage returns in netascii mode
+
+reading bytes from a file and writing bytes to a file
+
+Dealing with timeouts
+
+Converting txt files into netascii to be sent
+	- handled overflow dumbly
+	-should read data size - overflow.length
+
+
+\section{Static Analysis}
+
+\end{document}
