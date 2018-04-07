@@ -87,11 +87,9 @@ public class Client
 		if(timeoutCounter >= Const.SOCKET_TIMEOUT_LIMIT)
 			return null;
 		
-		if (serverPort == Const.TFTP_PORT) 
-		{
+		if (serverPort == Const.TFTP_PORT)
 			serverPort = packet.getPort();
-			System.out.printf("New server port: %d\n", serverPort);
-		}
+
 		
 		byte data[] = new byte[packet.getLength()];
 		
@@ -432,8 +430,6 @@ public class Client
 				}
 				
 				bytesRead += bytesToRead;
-				
-				System.out.printf("bytes read: %d\n", bytesRead);
 				
 				// put the data into the packet
 				if(isOctet)
