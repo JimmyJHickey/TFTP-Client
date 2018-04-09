@@ -72,7 +72,9 @@ public class Client
 			} 
 			catch (SocketTimeoutException e)
 			{
-				System.err.printf("Timeout while reciveing, trying %d more times.\n", Const.SOCKET_TIMEOUT_LIMIT - timeoutCounter -1);
+				System.err.printf("Timeout while reciveing, trying %d more time%s.\n", 
+						Const.SOCKET_TIMEOUT_LIMIT - timeoutCounter -1, 
+						Const.SOCKET_TIMEOUT_LIMIT - timeoutCounter -1 == 1 ? "" : "s");
 				
 				if(resend)
 					sendPacket(resend_buf);
@@ -161,6 +163,12 @@ public class Client
 		sendPacket(request);
 		
 		reply = getMail(request, false);
+		
+		if(reply == null)
+		{
+			System.err.printf("Server is unresponsive, file download failed\n");
+			return false;
+		}
 		
 		// receive and save the data of the requested file
 		while(reply != null && reply.length == Const.PACKET_SIZE)
@@ -472,7 +480,7 @@ public class Client
 		// format text to fit netascii standard 
 		if(System.lineSeparator().equals("\n"))
 			strBytes = strBytes.replaceAll("\n", "\r\n");
-		
+	
 		
 		byte byteArray[] = strBytes.getBytes();
 		

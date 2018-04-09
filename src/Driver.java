@@ -1,10 +1,11 @@
+// CS 413 TFTP Client
+// Ben Andrews, Will Diedrick, Jimmy Hickey
+// 2018-3-24
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-// CS 413 TFTP Client
-// Ben Andrews, Will Diedrick, Jimmy Hickey
-// 2018-3-24
 
 public class Driver 
 {
@@ -125,7 +126,7 @@ public class Driver
 						if(success)
 							System.out.printf("File download successful\n");
 						else
-							System.out.printf("Error\n");
+							System.err.printf("Error\n");
 					}
 					else
 					{
@@ -145,7 +146,7 @@ public class Driver
 						if(success)
 							System.out.printf("File upload successful\n");
 						else
-							System.out.printf("Error\n");
+							System.err.printf("Error\n");
 						
 					}
 					else
@@ -175,6 +176,7 @@ public class Driver
 					
 				default:
 					System.out.printf("invalid command, type \"help\" for help\n");
+					
 			}
 		}
 		
