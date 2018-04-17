@@ -170,6 +170,8 @@ public class Client
 			return false;
 		}
 		
+		
+		byte ack[] = {Const.TERM, Const.ACK, Const.TERM, Const.TERM};
 		// receive and save the data of the requested file
 		while(reply != null && reply.length == Const.PACKET_SIZE)
 		{
@@ -187,10 +189,20 @@ public class Client
 			
 			if(blockNumber_server != blockNumber_client)
 			{
-				// a repeat ACK on the network will kill us, whoops
 				System.err.printf("Expected block number %d. Got block number %d\n", blockNumber_client, blockNumber_server);
-				sendErrorPacket(Const.EC_UNKNOWN);
-				return false;
+				
+				if(blockNumber_server == blockNumber_client -1)
+				{
+					System.err.printf("Resending ack.\n");
+					sendPacket(ack);
+					continue;
+				}
+				else
+				{
+					// a repeat ACK on the network will kill us, whoops
+					sendErrorPacket(Const.EC_UNKNOWN);
+					return false;
+				}
 			}
 			
 			
@@ -200,7 +212,8 @@ public class Client
 				writeAsciiToFile(reply);
 			
 			// build the ack using the raw block number from the servers packet
-			byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
+			ack[Const.BLCK_NUM_MSB_OFFSET] = reply[Const.BLCK_NUM_MSB_OFFSET];
+			ack[Const.BLCK_NUM_LSB_OFFSET] = reply[Const.BLCK_NUM_LSB_OFFSET];
 			sendPacket(ack);
 			
 			reply = getMail(ack, true);
@@ -225,7 +238,8 @@ public class Client
 			else
 				writeAsciiToFile(reply);
 			
-			byte ack[] = {Const.TERM, Const.ACK, reply[2], reply[3] };
+			ack[Const.BLCK_NUM_MSB_OFFSET] = reply[Const.BLCK_NUM_MSB_OFFSET];
+			ack[Const.BLCK_NUM_LSB_OFFSET] = reply[Const.BLCK_NUM_LSB_OFFSET];
 			sendPacket(ack);
 		}
 		
